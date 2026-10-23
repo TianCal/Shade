@@ -31,6 +31,14 @@ Shade remembers the dim level per app and reuses it the next time you pick a win
 
 Debug: `Shade --dim-app Finder` dims Finder's frontmost window on launch.
 
+## Troubleshooting
+
+Shade logs when overlays are shown, hidden, reordered and removed:
+
+```bash
+log stream --predicate 'subsystem == "com.github.tiancal.shade"' --level debug
+```
+
 ## Known limitations
 
 - Can only dim, not brighten.
