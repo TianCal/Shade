@@ -38,17 +38,76 @@ final class DimController {
 
     // MARK: - Tracking target windows
 
+    // Poll at full rate only while windows may be moving; otherwise a slow poll still catches
+    // changes that no event announces (e.g. an app resizing its own window).
+    private static let fastInterval: TimeInterval = 1.0 / 60.0
+    private static let idleInterval: TimeInterval = 0.25
+    /// How long to stay at full rate after the last activity.
+    private static let fastDuration: TimeInterval = 1
+
+    private var interval: TimeInterval = 0
+    private var fastUntil = Date.distantPast
+    private var mouseMonitor: Any?
+    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+
     private func startTimerIfNeeded() {
         guard timer == nil else { return }
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
-        // .common mode keeps tracking while the menu is open or a slider is being dragged
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        startWatchingActivity()
+        noteActivity()
     }
 
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+        interval = 0
+        stopWatchingActivity()
+    }
+
+    private func schedule(interval: TimeInterval) {
+        timer?.invalidate()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.tick() }
+        timer.tolerance = interval * 0.1
+        // .common mode keeps tracking while the menu is open or a slider is being dragged
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        self.interval = interval
+        Log.overlay.debug("Polling every \(Int(interval * 1000)) ms")
+    }
+
+    /// Windows may be about to move: track at full rate for a moment.
+    private func noteActivity() {
+        fastUntil = Date().addingTimeInterval(Self.fastDuration)
+        if interval != Self.fastInterval { schedule(interval: Self.fastInterval) }
+    }
+
+    private func startWatchingActivity() {
+        // Mouse events can be monitored globally without Accessibility permission; they cover
+        // dragging, resizing and clicking windows to the front
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseDragged, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in self?.noteActivity() }
+
+        let workspace = NSWorkspace.shared.notificationCenter
+        let workspaceNames: [Notification.Name] = [
+            NSWorkspace.didActivateApplicationNotification,
+            NSWorkspace.activeSpaceDidChangeNotification,
+            NSWorkspace.didHideApplicationNotification,
+            NSWorkspace.didUnhideApplicationNotification,
+            NSWorkspace.didWakeNotification,
+            NSWorkspace.screensDidWakeNotification,
+        ]
+        for name in workspaceNames {
+            observers.append((workspace, workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.noteActivity() }))
+        }
+        let center = NotificationCenter.default
+        observers.append((center, center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in self?.noteActivity() }))
+    }
+
+    private func stopWatchingActivity() {
+        if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
+        mouseMonitor = nil
+        observers.forEach { center, token in center.removeObserver(token) }
+        observers.removeAll()
     }
 
     /// How long a target must be gone before its overlay is removed, so a transient miss doesn't drop it.
@@ -61,18 +120,25 @@ final class DimController {
         var indexByID: [CGWindowID: Int] = [:]
         for (i, info) in list.enumerated() { indexByID[info.id] = i }
 
+        let now = Date()
+        var changed = false
         var closed: [DimOverlay] = []
         for overlay in overlays {
             if let i = indexByID[overlay.targetID] {
                 if !overlay.isShown { Log.overlay.notice("Showing overlay for window \(overlay.targetID) (\(overlay.appName, privacy: .public))") }
                 overlay.goneSince = nil
-                overlay.show(over: list[i], needsReorder: needsReorder(overlay, targetIndex: i, in: list, indexByID: indexByID))
+                changed = overlay.show(over: list[i], needsReorder: needsReorder(overlay, targetIndex: i, in: list, indexByID: indexByID)) || changed
                 continue
             }
 
             // Not on screen: minimized, in another Space, or closed
-            if overlay.isShown { Log.overlay.notice("Hiding overlay: window \(overlay.targetID) (\(overlay.appName, privacy: .public)) is not on screen") }
-            overlay.hide()
+            if overlay.hide() {
+                Log.overlay.notice("Hiding overlay: window \(overlay.targetID) (\(overlay.appName, privacy: .public)) is not on screen")
+                changed = true
+            }
+            // Checking existence is an extra window server query; once a second is enough while the target is just hidden
+            if overlay.goneSince == nil && now.timeIntervalSince(overlay.lastExistsCheck) < 1 { continue }
+            overlay.lastExistsCheck = now
             if WindowList.exists(overlay.targetID) {
                 overlay.goneSince = nil
                 continue
@@ -82,7 +148,6 @@ final class DimController {
                 overlay.retarget(to: replacement)
                 continue
             }
-            let now = Date()
             if let since = overlay.goneSince {
                 if now.timeIntervalSince(since) > Self.removalDelay {
                     Log.overlay.notice("Removing overlay: window \(overlay.targetID) (\(overlay.appName, privacy: .public)) was closed")
@@ -93,6 +158,13 @@ final class DimController {
             }
         }
         closed.forEach(remove)
+        guard timer != nil else { return }
+
+        if changed {
+            noteActivity()
+        } else if interval != Self.idleInterval && now > fastUntil {
+            schedule(interval: Self.idleInterval)
+        }
     }
 
     /// Whether the overlay has to be reordered above its target. Apps often keep their own helper windows

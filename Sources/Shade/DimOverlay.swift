@@ -13,6 +13,8 @@ final class DimOverlay {
     private(set) var targetBounds: CGRect
     /// When the target window was first found to no longer exist; nil while it exists.
     var goneSince: Date?
+    /// When we last asked the window server whether a hidden target still exists.
+    var lastExistsCheck = Date.distantPast
 
     /// Dim level: 0 is no dimming, 1 is fully black.
     var dim: CGFloat {
@@ -55,19 +57,25 @@ final class DimOverlay {
     private static let reorderInterval: TimeInterval = 0.2
 
     /// Moves the overlay onto the target and orders it above the target when needed.
-    func show(over target: WindowInfo, needsReorder: Bool) {
+    /// Returns whether anything changed.
+    @discardableResult
+    func show(over target: WindowInfo, needsReorder: Bool) -> Bool {
+        var changed = false
         targetBounds = target.bounds
         let frame = Geometry.cocoaRect(fromCG: target.bounds)
         if frame != lastFrame {
             window.setFrame(frame, display: true)
             lastFrame = frame
+            changed = true
         }
         let now = Date()
         if !window.isVisible || (needsReorder && now.timeIntervalSince(lastReorder) > Self.reorderInterval) {
             window.order(.above, relativeTo: Int(target.id))
             lastReorder = now
+            changed = true
             Log.overlay.debug("Reordered overlay above window \(target.id) (\(self.appName, privacy: .public))")
         }
+        return changed
     }
 
     func retarget(to target: WindowInfo) {
@@ -76,8 +84,12 @@ final class DimOverlay {
         goneSince = nil
     }
 
-    func hide() {
-        if window.isVisible { window.orderOut(nil) }
+    /// Returns whether the overlay was visible.
+    @discardableResult
+    func hide() -> Bool {
+        guard window.isVisible else { return false }
+        window.orderOut(nil)
+        return true
     }
 
     func close() {
