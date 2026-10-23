@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 编译 release 版本并打包成 Shade.app（菜单栏应用，没有 Dock 图标）
+# Build a release binary and package it as Shade.app (menu bar app, no Dock icon)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -24,4 +24,4 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 codesign --force --sign - "$APP" >/dev/null
-echo "已生成 $APP"
+echo "Built $APP"

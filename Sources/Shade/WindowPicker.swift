@@ -1,6 +1,6 @@
 import AppKit
 
-/// 选窗口模式：在每块屏幕上盖一层透明窗口，高亮鼠标下方的窗口，点击即选中，Esc 取消。
+/// Pick mode: covers every screen with a transparent window, highlights the window under the cursor, click to pick, Esc to cancel.
 final class WindowPicker {
     private var windows: [PickerWindow] = []
     private var completion: ((WindowInfo?) -> Void)?
@@ -84,7 +84,7 @@ private final class PickerView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        // 几乎透明但不为 0，这样才能接收鼠标事件
+        // Nearly transparent but non-zero so it still receives mouse events
         NSColor.black.withAlphaComponent(0.08).setFill()
         bounds.fill()
 
@@ -97,7 +97,7 @@ private final class PickerView: NSView {
             path.stroke()
         }
 
-        let text = highlightName.map { "点击调暗「\($0)」的这个窗口 · Esc 取消" } ?? "把鼠标移到要调暗的窗口上，点击选中 · Esc 取消"
+        let text = highlightName.map { "Click to dim this \($0) window · Esc to cancel" } ?? "Hover over a window and click to dim it · Esc to cancel"
         drawBanner(text)
     }
 

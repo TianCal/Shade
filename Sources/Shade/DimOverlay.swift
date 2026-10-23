@@ -1,6 +1,6 @@
 import AppKit
 
-/// 盖在某个目标窗口上方的半透明黑色遮罩，点击可以穿透。
+/// A translucent black, click-through overlay placed directly above a target window.
 final class DimOverlay {
     let targetID: CGWindowID
     let pid: pid_t
@@ -8,7 +8,7 @@ final class DimOverlay {
     private let window: NSWindow
     private var lastFrame: NSRect = .zero
 
-    /// 调暗程度，0 表示不调暗，1 表示全黑。
+    /// Dim level: 0 is no dimming, 1 is fully black.
     var dim: CGFloat {
         didSet { window.contentView?.layer?.backgroundColor = NSColor.black.withAlphaComponent(dim).cgColor }
     }
@@ -27,7 +27,7 @@ final class DimOverlay {
         window.hasShadow = false
         window.ignoresMouseEvents = true
         window.isReleasedWhenClosed = false
-        window.level = .normal // 与普通窗口同一层，才能插在目标窗口正上方
+        window.level = .normal // Same level as normal windows so it can sit directly above the target
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
 
         let view = NSView()
@@ -38,10 +38,10 @@ final class DimOverlay {
         window.contentView = view
     }
 
-    /// 新版 macOS 的窗口是圆角的；这个值是近似值，盖住四角的同时不让黑色溢出窗口外。
+    /// Recent macOS windows have rounded corners; this approximates them so the overlay covers the corners without spilling outside.
     private static let cornerRadius: CGFloat = 16
 
-    /// 把遮罩移动到目标位置，并确保它排在目标窗口正上方。
+    /// Moves the overlay onto the target and makes sure it is ordered directly above it.
     func show(over target: WindowInfo, windowAbove: CGWindowID?) {
         let frame = Geometry.cocoaRect(fromCG: target.bounds)
         if frame != lastFrame {

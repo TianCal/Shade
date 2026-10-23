@@ -1,6 +1,6 @@
 import AppKit
 
-/// 管理所有遮罩：定时读取窗口列表，让每个遮罩跟随目标窗口。
+/// Manages all overlays: polls the window list and keeps each overlay on top of its target window.
 final class DimController {
     private(set) var overlays: [DimOverlay] = []
     private var timer: Timer?
@@ -36,12 +36,12 @@ final class DimController {
         UserDefaults.standard.set(Double(value), forKey: key(for: overlay.appName))
     }
 
-    // MARK: - 跟随目标窗口
+    // MARK: - Tracking target windows
 
     private func startTimerIfNeeded() {
         guard timer == nil else { return }
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
-        // .common 模式：菜单展开、拖动滑块时也继续跟随
+        // .common mode keeps tracking while the menu is open or a slider is being dragged
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
@@ -59,7 +59,7 @@ final class DimController {
         var closed: [DimOverlay] = []
         for overlay in overlays {
             guard let i = indexByID[overlay.targetID] else {
-                // 不在当前屏幕上：可能最小化、在其他 Space，或者已经关闭
+                // Not on screen: minimized, in another Space, or closed
                 if WindowList.exists(overlay.targetID) { overlay.hide() } else { closed.append(overlay) }
                 continue
             }
@@ -68,7 +68,7 @@ final class DimController {
         closed.forEach(remove)
     }
 
-    // MARK: - 按 App 记住调暗程度
+    // MARK: - Remembering dim level per app
 
     private func key(for appName: String) -> String { "dim.\(appName)" }
 

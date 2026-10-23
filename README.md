@@ -1,39 +1,39 @@
 # Shade
 
-菜单栏小工具：单独调暗 macOS 上的某一个窗口（比如分屏时左边太亮的那个 App）。
+A menu bar app that dims individual windows on macOS — for example, the too-bright side of a split screen.
 
-## 原理
+## How it works
 
-在目标窗口正上方盖一层半透明的黑色窗口，点击可以穿透。每秒 60 次读取 `CGWindowList`，让遮罩跟随目标窗口移动、缩放和改变前后顺序。窗口最小化或切到其他 Space 时遮罩自动隐藏，窗口关闭时自动移除。
+Shade places a translucent, click-through black window directly above the target window. It polls `CGWindowList` 60 times per second so the overlay follows the target as it moves, resizes, or changes stacking order. The overlay hides when the window is minimized or moved to another Space, and is removed when the window closes.
 
-不需要“辅助功能”或“屏幕录制”权限。
+No Accessibility or Screen Recording permission is required.
 
-## 运行
+## Run
 
 ```bash
 swift run
 ```
 
-或者打包成 App（生成 `build/Shade.app`，可以拖进“应用程序”文件夹）：
+Or package it as an app (creates `build/Shade.app`, which you can drag into Applications):
 
 ```bash
 ./build-app.sh
 open build/Shade.app
 ```
 
-## 使用
+## Usage
 
-1. 点菜单栏的 ☀ 图标 →「选择要调暗的窗口…」
-2. 鼠标移到要调暗的窗口上（会高亮），点击选中；按 Esc 或右键取消
-3. 再点菜单栏图标，用滑块调整调暗程度（0–90%），点 ⓧ 取消调暗
+1. Click the ☀ icon in the menu bar → "Pick a Window to Dim…"
+2. Hover over the window you want to dim (it gets highlighted) and click it. Press Esc or right-click to cancel.
+3. Click the menu bar icon again and use the slider to set the dim level (0–90%). Click ⓧ to stop dimming that window.
 
-每个 App 的调暗程度会被记住，下次选同一个 App 的窗口时自动沿用。
+Shade remembers the dim level per app and reuses it the next time you pick a window from the same app.
 
-调试：`Shade --dim-app Finder` 启动后直接调暗 Finder 最前面的窗口。
+Debug: `Shade --dim-app Finder` dims Finder's frontmost window on launch.
 
-## 已知限制
+## Known limitations
 
-- 只能调暗，不能调亮。
-- 遮罩用固定 16pt 圆角来近似窗口圆角，有的窗口四角会多出或少一点。
-- 拖动窗口时，遮罩可能会慢一帧。
-- 目标 App 弹出的菜单、弹窗不会被调暗。
+- Can only dim, not brighten.
+- The overlay uses a fixed 16pt corner radius to approximate window corners, so some windows may show slight mismatches at the corners.
+- The overlay may lag one frame behind while a window is being dragged.
+- Menus and dialogs opened by the target app are not dimmed.

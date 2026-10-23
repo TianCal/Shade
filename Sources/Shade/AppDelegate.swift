@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let picker = WindowPicker()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // variableLength：宽度贴合图标本身，不像 squareLength 那样占一个方块
+        // variableLength fits the icon itself instead of reserving a square like squareLength
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         updateIcon()
         let menu = NSMenu()
@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         controller.onChange = { [weak self] in self?.updateIcon() }
 
-        // 调试用：`Shade --dim-app Safari` 启动后直接调暗该 App 最前面的窗口
+        // Debug: `Shade --dim-app Safari` dims that app's frontmost window on launch
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--dim-app"), i + 1 < args.count {
             let name = args[i + 1]
@@ -35,12 +35,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .withSymbolConfiguration(config)
     }
 
-    // MARK: - 菜单
+    // MARK: - Menu
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let pick = NSMenuItem(title: "选择要调暗的窗口…", action: #selector(pickWindow), keyEquivalent: "")
+        let pick = NSMenuItem(title: "Pick a Window to Dim…", action: #selector(pickWindow), keyEquivalent: "")
         pick.target = self
         menu.addItem(pick)
 
@@ -60,17 +60,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 menu.addItem(item)
             }
             menu.addItem(.separator())
-            let removeAll = NSMenuItem(title: "全部取消调暗", action: #selector(removeAll), keyEquivalent: "")
+            let removeAll = NSMenuItem(title: "Undim All", action: #selector(removeAll), keyEquivalent: "")
             removeAll.target = self
             menu.addItem(removeAll)
         }
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "退出 Shade", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Shade", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     @objc private func pickWindow() {
-        // 等菜单完全收起后再进入选窗口模式
+        // Wait for the menu to close before entering pick mode
         DispatchQueue.main.async { [weak self] in
             self?.picker.begin { info in
                 guard let self, let info else { return }
@@ -85,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 }
 
-/// 菜单里的一行：App 名称 + 调暗滑块 + 移除按钮。
+/// One menu row: app name + dim slider + remove button.
 private final class SliderMenuView: NSView {
     private let onChange: (CGFloat) -> Void
     private let onRemove: () -> Void
@@ -106,14 +106,14 @@ private final class SliderMenuView: NSView {
         percentLabel.alignment = .right
         percentLabel.frame = NSRect(x: 184, y: 31, width: 56, height: 16)
 
-        let removeButton = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "取消调暗")!,
+        let removeButton = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Undim")!,
                                     target: self, action: #selector(remove))
         removeButton.isBordered = false
         removeButton.contentTintColor = .secondaryLabelColor
-        removeButton.toolTip = "取消调暗这个窗口"
+        removeButton.toolTip = "Stop dimming this window"
         removeButton.frame = NSRect(x: 248, y: 29, width: 20, height: 20)
 
-        // 最多调暗 90%，避免窗口完全看不见
+        // Cap at 90% so the window never goes fully black
         let slider = NSSlider(value: Double(value), minValue: 0, maxValue: 0.9, target: self, action: #selector(sliderChanged(_:)))
         slider.isContinuous = true
         slider.frame = NSRect(x: 14, y: 6, width: 254, height: 20)
@@ -133,6 +133,6 @@ private final class SliderMenuView: NSView {
     @objc private func remove() { onRemove() }
 
     private func updatePercent(_ value: CGFloat) {
-        percentLabel.stringValue = "调暗 \(Int((value * 100).rounded()))%"
+        percentLabel.stringValue = "Dim \(Int((value * 100).rounded()))%"
     }
 }
