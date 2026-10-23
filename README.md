@@ -1,10 +1,12 @@
-# Shade
+<p align="center"><img src="Assets/icon.png" width="160" alt="Shade icon"></p>
+
+<h1 align="center">Shade</h1>
 
 A menu bar app that dims individual windows on macOS — for example, the too-bright side of a split screen.
 
 ## How it works
 
-Shade places a translucent, click-through black window directly above the target window. It polls `CGWindowList` 60 times per second so the overlay follows the target as it moves, resizes, or changes stacking order. The overlay hides when the window is minimized or moved to another Space, and is removed when the window closes.
+Shade places a translucent, click-through black window directly above the target window. It polls `CGWindowList` so the overlay follows the target as it moves, resizes, or changes stacking order: 60 times per second right after mouse clicks, drags, app or Space switches, and 4 times per second when nothing is happening. The overlay hides when the window is minimized or moved to another Space, and is removed when the window closes.
 
 No Accessibility or Screen Recording permission is required.
 
