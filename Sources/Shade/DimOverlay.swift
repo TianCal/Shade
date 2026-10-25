@@ -23,6 +23,8 @@ final class DimOverlay {
 
     var windowID: CGWindowID { CGWindowID(window.windowNumber) }
     var isShown: Bool { window.isVisible }
+    /// Whether the overlay is ordered in on another Space (where it waits for the user to switch back).
+    var isOnOtherSpace: Bool { window.isVisible && !window.isOnActiveSpace }
 
     init(target: WindowInfo, dim: CGFloat) {
         targetID = target.id
@@ -39,7 +41,9 @@ final class DimOverlay {
         window.isReleasedWhenClosed = false
         window.canHide = false // Stay visible if Shade gets hidden (e.g. by "Hide Others")
         window.level = .normal // Same level as normal windows so it can sit directly above the target
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
+        // Not .canJoinAllSpaces: the overlay belongs to the Space it was ordered in (the target's), so it
+        // slides away with that Space instead of showing up on the next one during a Space switch
+        window.collectionBehavior = [.fullScreenAuxiliary, .transient, .ignoresCycle]
 
         let view = NSView()
         view.wantsLayer = true
@@ -68,6 +72,9 @@ final class DimOverlay {
             lastFrame = frame
             changed = true
         }
+        // The target is on the active Space but the overlay was left on another one (e.g. the window was
+        // moved to this Space): order it out so ordering it back in puts it on this Space
+        if isOnOtherSpace { window.orderOut(nil) }
         let now = Date()
         if !window.isVisible || (needsReorder && now.timeIntervalSince(lastReorder) > Self.reorderInterval) {
             window.order(.above, relativeTo: Int(target.id))

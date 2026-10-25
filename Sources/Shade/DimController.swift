@@ -131,8 +131,9 @@ final class DimController {
                 continue
             }
 
-            // Not on screen: minimized, in another Space, or closed
-            if overlay.hide() {
+            // Not on screen: minimized, in another Space, or closed. An overlay left on another Space
+            // stays there with its target, so it's already in place when the user switches back.
+            if !overlay.isOnOtherSpace && overlay.hide() {
                 Log.overlay.notice("Hiding overlay: window \(overlay.targetID) (\(overlay.appName, privacy: .public)) is not on screen")
                 changed = true
             }
